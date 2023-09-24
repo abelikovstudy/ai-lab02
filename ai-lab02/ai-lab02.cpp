@@ -6,18 +6,18 @@
 #include <chrono>
 #include <format>
 #include <cstdint>
+#include <array>
 struct Node
 {
     Node* parent;
-    std::vector<uint8_t> value;
+    std::array<uint8_t, 16> value;
 };
 
 struct Statistics {
-    std::vector<uint8_t> start;
+    std::array<uint8_t, 16> start;
     int operations;
     std::chrono::duration<double> time;
 };
-
 
 
 enum directions
@@ -28,20 +28,23 @@ enum directions
     up = 4
 };
 
-std::vector<uint8_t> parse(std::string input) {
-    std::vector<uint8_t> nums;
+std::array<uint8_t, 16> parse(std::string input) {
+
+    std::array<uint8_t, 16> nums;
+    int i = 0;
     for (char num : input) {
         if (num >= '0' && num <= '9') {
-            nums.push_back(num - '0');
+            nums[i] = (num - '0');
         }
         else {
-            nums.push_back(num - '0' - 7);
+            nums[i] = (num - '0' - 7);
         }
+        i += 1;
     }
     return nums;
 }
 
-bool isSolvable(std::vector<uint8_t> nums) {
+bool isSolvable(std::array<uint8_t, 16> nums) {
     int N = 0, e = 0;
     for (int i = 0; i < nums.size(); i++) {
         if (nums[i] == 0) {
@@ -58,75 +61,44 @@ bool isSolvable(std::vector<uint8_t> nums) {
     return (N % 2 == 0) ? true : false;
 }
 
-std::vector<uint8_t> move(std::vector<uint8_t> nums ,directions direction) {
-    auto element_iter = std::find(nums.begin(), nums.end(), 0);
-    int pos = std::distance(nums.begin(), element_iter) + 1;
+std::array<uint8_t, 16> move(std::array<uint8_t, 16> nums ,directions direction,int pos) {
+    
     switch (direction)
     {
     case right:
         if (pos % 4 != 0)
-            std::iter_swap(element_iter, element_iter + 1);
+            std::swap(nums[pos - 1], nums[pos]);
+            // std::iter_swap(element_iter, element_iter + 1);
         break;
     case down:
         if (pos < 13)
-            std::iter_swap(element_iter, element_iter + 4);
+            std::swap(nums[pos - 1], nums[pos + 3]);
+            //std::iter_swap(element_iter, element_iter + 4);
 
         break;
     case left:
-        if (pos != 1 && pos % 5 != 0)
-            std::iter_swap(element_iter, element_iter - 1);
+        if ((pos + 3) % 4 != 0)
+            std::swap(nums[pos - 1], nums[pos - 2]);
+            //std::iter_swap(element_iter, element_iter - 1);
         break;
     case up:
         if (pos > 4)
-            std::iter_swap(element_iter, element_iter - 4);
+            std::swap(nums[pos - 1], nums[pos - 5]);
+            //std::iter_swap(element_iter, element_iter - 4);
         break;
     }
     return nums;
 }
 
-bool move_out(std::vector<int> &nums, directions direction) {
-    auto element_iter = std::find(nums.begin(), nums.end(), 0);
-    int pos = std::distance(nums.begin(), element_iter) + 1;
-    switch (direction)
-    {
-    case right:
-        if (pos % 4 != 0)
-            std::iter_swap(element_iter, element_iter + 1);
-        else
-            return false;
-        break;
-    case down:
-        if (pos < 13)
-            std::iter_swap(element_iter, element_iter + 4);
-        else
-            return false;
-        break;
-    case left:
-        if (pos != 1 && pos % 5 != 0)
-            std::iter_swap(element_iter, element_iter - 1);
-        else
-            return false;
-        break;
-    case up:
-        if (pos > 4)
-            std::iter_swap(element_iter, element_iter - 4);
-        else
-            return false;
-        break;
-    default:
-        break;
-    }
-    return true;
-}
 
-
-void prettyPrint(std::vector<int> nums) {
-    for (int i = 0; i < nums.size(); i += 4) {
+void prettyPrint(std::array<int,16> nums) {
+    for (int i = 0; i < 16; i += 4) {
         std::cout << nums[i] << ((nums[i] > 9) ? " " : "  ");
         std::cout << nums[i + 1] << ((nums[i  + 1] > 9) ? " " : "  ");
         std::cout << nums[i + 2] << ((nums[i + 2] > 9) ? " " : "  ");
         std::cout << nums[i + 3] << std::endl;
     }
+    std::cout << std::endl;
 }
 
 int solve(std::string input) {
@@ -136,7 +108,7 @@ int solve(std::string input) {
     return 0;
 }
 
-Statistics BFS(std::vector<uint8_t> start, std::vector<uint8_t>  end) {
+Statistics BFS(std::array<uint8_t, 16> start, std::array<uint8_t, 16>  end) {
     int operations = 0;
     std::chrono::time_point<std::chrono::system_clock> timeStart, timeEnd;
     timeStart = std::chrono::system_clock::now();
@@ -145,10 +117,11 @@ Statistics BFS(std::vector<uint8_t> start, std::vector<uint8_t>  end) {
     startNode->parent = NULL;
     startNode->value = start;
     front.push_back(startNode);
-    std::set<std::vector<uint8_t>> visited;
+    std::set<std::array<uint8_t, 16>> visited;
     while (!front.empty()) {
         Node* variant = front.front();
-        front.pop_front();;
+        front.pop_front();
+
         if (visited.find(variant->value) != visited.end()) {
             continue;
         }
@@ -163,29 +136,38 @@ Statistics BFS(std::vector<uint8_t> start, std::vector<uint8_t>  end) {
                 break;
             }
             else {
-                if (variant->value != move(variant->value, right)) {
+                auto element_iter = std::find(variant->value.begin(), variant->value.end(), 0);
+                auto pos = std::distance(variant->value.begin(), element_iter) + 1;
+
+                auto move_right = move(variant->value, right, pos);
+                auto move_left = move(variant->value, left,  pos);
+                auto move_up = move(variant->value, up, pos);
+                auto move_down = move(variant->value, down, pos);
+
+                if (variant->parent == nullptr || variant->value != move_right && variant->parent->value != move_right) {
                     Node* one = new Node();
                     one->parent = variant;
-                    one->value = move(variant->value, right);
+                    one->value = move_right;
+                    
                     front.push_back(one);
                 }
 
-                if (variant->value != move(variant->value, left)) {
+                if (variant->parent == nullptr ||  variant->value != move_left && variant->parent->value != move_left ) {
                     Node* two = new Node();
                     two->parent = variant;
-                    two->value = move(variant->value, left);
+                    two->value = move_left;
                     front.push_back(two);
                 }
-                if (variant->value != move(variant->value, up)) {
+                if (variant->parent == nullptr || variant->value != move_up && variant->parent->value != move_up ) {
                     Node* three = new Node();
                     three->parent = variant;
-                    three->value = move(variant->value, up);
+                    three->value = move_up;
                     front.push_back(three);
                 }
-                if (variant->value != move(variant->value, down)) {
+                if (variant->parent == nullptr || variant->value != move_down && variant->parent->value != move_down) {
                     Node* four = new Node();
                     four->parent = variant;
-                    four->value = move(variant->value, down);
+                    four->value = move_down;
                     front.push_back(four);
                 }
             }
@@ -214,7 +196,6 @@ void print_BFS(std::string input) {
 
 int main()
 {
-    
     std::cout << "Numbers          Time          Operations" << std::endl;
     print_BFS("1234067859ACDEBF");
     print_BFS("5134207896ACDEBF");
