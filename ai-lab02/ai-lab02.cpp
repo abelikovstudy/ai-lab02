@@ -7,16 +7,19 @@
 #include <format>
 #include <cstdint>
 #include <array>
+#include <iomanip>
 struct Node
 {
     Node* parent;
     std::array<uint8_t, 16> value;
+    int depth;
 };
 
 struct Statistics {
     std::array<uint8_t, 16> start;
     int operations;
     std::chrono::duration<double> time;
+    bool status;
 };
 
 
@@ -110,74 +113,81 @@ int solve(std::string input) {
 
 Statistics BFS(std::array<uint8_t, 16> start, std::array<uint8_t, 16>  end) {
     int operations = 0;
+    bool done = false;
     std::chrono::time_point<std::chrono::system_clock> timeStart, timeEnd;
     timeStart = std::chrono::system_clock::now();
     std::deque<Node*> front;
     Node* startNode = new Node();
     startNode->parent = NULL;
     startNode->value = start;
+    startNode->depth = 0;
     front.push_back(startNode);
-    std::set<std::array<uint8_t, 16>> visited;
     while (!front.empty()) {
+        
         Node* variant = front.front();
         front.pop_front();
+        
+        if (variant->depth > 19) {
+            
+            break;
+        }
 
-        if (visited.find(variant->value) != visited.end()) {
-            continue;
+        if (variant->value == end) {
+            timeEnd = std::chrono::system_clock::now();
+            operations = variant->depth;
+            done = true;
+            break;
         }
         else {
-            visited.insert(variant->value);
-            if (variant->value == end) {
-                timeEnd = std::chrono::system_clock::now();
-                while (variant->parent != NULL) {
-                    variant = variant->parent;
-                    operations += 1;
-                }
-                break;
+            auto element_iter = std::find(variant->value.begin(), variant->value.end(), 0);
+            auto pos = std::distance(variant->value.begin(), element_iter) + 1;
+
+            auto move_right = move(variant->value, right, pos);
+            auto move_left = move(variant->value, left,  pos);
+            auto move_up = move(variant->value, up, pos);
+            auto move_down = move(variant->value, down, pos);
+
+            if (variant->parent == nullptr || variant->value != move_right && variant->parent->value != move_right) {
+                Node* one = new Node();
+                one->parent = variant;
+                one->value = move_right;
+                one->depth = one->parent->depth + 1;
+                front.push_back(one);
+        
             }
-            else {
-                auto element_iter = std::find(variant->value.begin(), variant->value.end(), 0);
-                auto pos = std::distance(variant->value.begin(), element_iter) + 1;
 
-                auto move_right = move(variant->value, right, pos);
-                auto move_left = move(variant->value, left,  pos);
-                auto move_up = move(variant->value, up, pos);
-                auto move_down = move(variant->value, down, pos);
-
-                if (variant->parent == nullptr || variant->value != move_right && variant->parent->value != move_right) {
-                    Node* one = new Node();
-                    one->parent = variant;
-                    one->value = move_right;
-                    
-                    front.push_back(one);
-                }
-
-                if (variant->parent == nullptr ||  variant->value != move_left && variant->parent->value != move_left ) {
-                    Node* two = new Node();
-                    two->parent = variant;
-                    two->value = move_left;
-                    front.push_back(two);
-                }
-                if (variant->parent == nullptr || variant->value != move_up && variant->parent->value != move_up ) {
-                    Node* three = new Node();
-                    three->parent = variant;
-                    three->value = move_up;
-                    front.push_back(three);
-                }
-                if (variant->parent == nullptr || variant->value != move_down && variant->parent->value != move_down) {
-                    Node* four = new Node();
-                    four->parent = variant;
-                    four->value = move_down;
-                    front.push_back(four);
-                }
+            if (variant->parent == nullptr ||  variant->value != move_left && variant->parent->value != move_left ) {
+                Node* two = new Node();
+                two->parent = variant;
+                two->value = move_left;
+                two->depth = two->parent->depth + 1;
+                front.push_back(two);
+                
+            }
+            if (variant->parent == nullptr || variant->value != move_up && variant->parent->value != move_up ) {
+                Node* three = new Node();
+                three->parent = variant;
+                three->value = move_up;
+                three->depth = three->parent->depth + 1;
+                front.push_back(three);
+                
+            }
+            if (variant->parent == nullptr || variant->value != move_down && variant->parent->value != move_down) {
+                Node* four = new Node();
+                four->parent = variant;
+                four->value = move_down;
+                four->depth = four->parent->depth + 1;
+                front.push_back(four);
+                
             }
         }
-        
     }
+
     Statistics runtime_stats;
     runtime_stats.start = start;
     runtime_stats.operations = operations;
     runtime_stats.time = timeEnd - timeStart;
+    runtime_stats.status = done;
     return runtime_stats;
 }
 
@@ -187,7 +197,15 @@ void print_BFS(std::string input) {
     if (isSolvable(nums)) {
         auto dest = parse("123456789ABCDEF0");
         stats = BFS(nums, dest);
-        std::cout << input << " " << stats.time.count() << " " << stats.operations << std::endl;
+        std::cout 
+            << input 
+            << " " 
+            << (stats.status ? "+" : "-")  
+            << "    "
+            << stats.operations
+            << ((stats.operations >= 10) ?  "         "  :"          ")
+            << stats.time.count() 
+            << std::endl;
     }
     else {
         std::cout << "Error";
@@ -196,7 +214,9 @@ void print_BFS(std::string input) {
 
 int main()
 {
-    std::cout << "Numbers          Time          Operations" << std::endl;
+
+    std::setprecision(4);
+    std::cout << "Numbers          Done Operations Time" << std::endl;
     print_BFS("1234067859ACDEBF");
     print_BFS("5134207896ACDEBF");
     print_BFS("16245A3709C8DEBF");
