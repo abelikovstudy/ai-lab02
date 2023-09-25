@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <array>
 #include <iomanip>
+#include <queue>
+
 struct Node
 {
     Node* parent;
@@ -32,6 +34,34 @@ enum directions
     left = 3,
     up = 4
 };
+
+uint8_t Mn(std::array<uint8_t, 16> input) {
+    uint8_t sum = 0;
+    for (int i = 0; i < input.size(); ++i) {
+        if (input[i] != 0) {
+            sum += abs(( (input[i] - 1) / 4) - (i / 4)) + abs(( (input[i] - 1) % 4) - (i % 4));
+        }   
+    }
+    return sum;
+}
+
+uint8_t Ln(std::array<uint8_t, 16> input) {
+    uint8_t sum = 0;
+
+    for (int i = 1; i < 16; ++i) {
+        
+    }
+    return sum * 2;
+}
+
+class Compare {
+public:
+    bool operator()(Node * first, Node * second)
+    {
+        return (Mn(first->value) + first->depth) > (Mn(second->value) + second->depth);
+    }
+};
+
 
 std::array<uint8_t, 16> parse(std::string input) {
 
@@ -287,6 +317,83 @@ Statistics IDS_wrap(std::array<uint8_t, 16> start, std::array<uint8_t, 16>  end,
     return DFS_runtime;
 }
 
+Statistics A_Star(std::array<uint8_t, 16> start, std::array<uint8_t, 16>  end) {
+    Statistics runtime_stats;
+    std::set<std::array<uint8_t,16>> visited;
+    std::priority_queue<Node*, std::deque<Node *>, Compare> front;
+    Node* startNode = new Node();
+    startNode->parent = NULL;
+    startNode->value = start;
+    startNode->depth = 0;
+    front.push(startNode);
+    std::chrono::time_point<std::chrono::system_clock> timeStart, timeEnd;
+    timeStart = std::chrono::system_clock::now();
+    while (!front.empty()) {
+        Node* node = front.top();
+        front.pop();
+        if (node->value == end) {
+            timeEnd = std::chrono::system_clock::now();
+            runtime_stats.time = timeEnd - timeStart;
+            runtime_stats.status = true;
+            runtime_stats.operations = node->depth;
+            runtime_stats.start = start;
+            break;
+        }
+        else {
+            if (visited.find(node->value) == visited.end()) {
+                visited.insert(node->value);
+                auto element_iter = std::find(node->value.begin(), node->value.end(), 0);
+                auto pos = std::distance(node->value.begin(), element_iter) + 1;
+
+                auto move_right = move(node->value, right, pos);
+                auto move_left = move(node->value, left, pos);
+                auto move_up = move(node->value, up, pos);
+                auto move_down = move(node->value, down, pos);
+
+
+                if (visited.find(move_right) == visited.end()) {
+                    Node* right = new Node();
+                    right->parent = node;
+                    right->value = move_right;
+                    right->depth = node->depth + 1;
+                    front.push(right);
+
+                }
+                if (visited.find(move_left) == visited.end()) {
+                    Node* left = new Node();
+                    left->parent = node;
+                    left->value = move_left;
+                    left->depth = node->depth + 1;
+                    front.push(left);
+                }
+
+                if (visited.find(move_up) == visited.end()) {
+                    Node* up = new Node();
+                    up->parent = node;
+                    up->value = move_up;
+                    up->depth = node->depth + 1;
+                    front.push(up);
+                }
+
+                if (visited.find(move_down) == visited.end()) {
+                    Node* down = new Node();
+                    down->parent = node;
+                    down->value = move_down;
+                    down->depth = node->depth + 1;
+                    front.push(down);
+                }
+
+            }
+            else {
+                delete node;
+            }
+        }
+        
+    }
+    return runtime_stats;
+}
+
+
 void print_BFS(std::string input) {
     Statistics stats;
     auto nums = parse(input);
@@ -325,6 +432,54 @@ void print_DFS(std::string input, uint8_t depth_control = 30) {
             << DFS_runtime.operations
             << ((DFS_runtime.operations >= 10) ? "         " : "          ")
             << DFS_runtime.time.count()
+            << std::endl;
+    }
+    else {
+        std::cout
+            << input
+            << " "
+            << "Error"
+            << std::endl;
+    }
+}
+
+void print_IDS(std::string input, uint8_t depth_control = 30) {
+    auto nums = parse(input);
+    if (isSolvable(nums)) {
+        auto dest = parse("123456789ABCDEF0");
+        IDS_wrap(nums, dest, depth_control);
+        std::cout
+            << input
+            << " "
+            << (DFS_runtime.status ? "+" : "-")
+            << "    "
+            << DFS_runtime.operations
+            << ((DFS_runtime.operations >= 10) ? "         " : "          ")
+            << DFS_runtime.time.count()
+            << std::endl;
+    }
+    else {
+        std::cout
+            << input
+            << " "
+            << "Error"
+            << std::endl;
+    }
+}
+
+void print_Astar(std::string input) {
+    auto nums = parse(input);
+    if (isSolvable(nums)) {
+        auto dest = parse("123456789ABCDEF0");
+        Statistics stats = A_Star(nums, dest);
+        std::cout
+            << input
+            << " "
+            << (stats.status ? "+" : "-")
+            << "    "
+            << stats.operations
+            << ((stats.operations >= 10) ? "         " : "          ")
+            << stats.time.count()
             << std::endl;
     }
     else {
@@ -375,25 +530,46 @@ int main(){
     print_DFS("FE169B4C0A73D852", 1);
     print_DFS("D79F2E8A45106C3B", 1);
     print_DFS("DBE87A2C91F65034", 1);
-    print_DFS("BAC0F478E19623D5", 1);*/
+    print_DFS("BAC0F478E19623D5", 1);
     std::cout << "================IDS==================" << std::endl;
     std::cout << "Numbers          Done Operations Time" << std::endl;
-    print_DFS("123456789AFB0EDC", 1);
-    print_DFS("F2345678A0BE91CD", 1);
-    print_DFS("123456789ABCDEF0", 1);
-    print_DFS("1234067859ACDEBF", 6);
-    print_DFS("5134207896ACDEBF", 9);
-    print_DFS("16245A3709C8DEBF", 11);
-    print_DFS("1723068459ACDEBF", 14);
-    print_DFS("12345678A0BE9FCD", 20);
-    print_DFS("51247308A6BE9FCD", 28);
-    print_DFS("F2345678A0BE91DC", 1);
-    print_DFS("75AB2C416D389F0E", 1);
-    print_DFS("04582E1DF79BCA36", 1);
-    print_DFS("FE169B4C0A73D852", 1);
-    print_DFS("D79F2E8A45106C3B", 1);
-    print_DFS("DBE87A2C91F65034", 1);
-    print_DFS("BAC0F478E19623D5", 1);
-
- 
+    print_IDS("123456789AFB0EDC", 1);
+    print_IDS("F2345678A0BE91CD", 1);
+    print_IDS("123456789ABCDEF0", 1);
+    print_IDS("1234067859ACDEBF", 6);
+    print_IDS("5134207896ACDEBF", 9);
+    print_IDS("16245A3709C8DEBF", 11);
+    print_IDS("1723068459ACDEBF", 14);
+    print_IDS("12345678A0BE9FCD", 20);
+    print_IDS("51247308A6BE9FCD", 28);
+    print_IDS("F2345678A0BE91DC", 1);
+    print_IDS("75AB2C416D389F0E", 1);
+    print_IDS("04582E1DF79BCA36", 1);
+    print_IDS("FE169B4C0A73D852", 1);
+    print_IDS("D79F2E8A45106C3B", 1);
+    print_IDS("BAC0F478E19623D5", 1);
+    print_IDS("DBE87A2C91F65034", 1);*/
+    
+    std::cout << "=================A*==================" << std::endl;
+    std::cout << "Numbers          Done Operations Time" << std::endl;
+    print_Astar("75AB2C416D389F0E");
+    /*
+    print_Astar("123456789AFB0EDC");
+    print_Astar("F2345678A0BE91CD");
+    print_Astar("123456789ABCDEF0");
+    print_Astar("1234067859ACDEBF");
+    print_Astar("5134207896ACDEBF");
+    print_Astar("16245A3709C8DEBF");
+    print_Astar("1723068459ACDEBF");
+    print_Astar("12345678A0BE9FCD");
+    print_Astar("51247308A6BE9FCD");
+    print_Astar("F2345678A0BE91DC");
+    print_Astar("75123804A6BE9FCD");
+    
+    print_Astar("04582E1DF79BCA36");
+    print_Astar("FE169B4C0A73D852");
+    print_Astar("D79F2E8A45106C3B");
+    print_Astar("DBE87A2C91F65034");
+    print_Astar("BAC0F478E19623D5");
+    */
 }
